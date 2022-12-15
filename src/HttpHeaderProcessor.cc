@@ -35,7 +35,8 @@
 #include "HttpHeaderProcessor.h"
 
 #include <vector>
-
+#include "LogFactory.h"
+#include "Logger.h"
 #include "HttpHeader.h"
 #include "message.h"
 #include "util.h"
@@ -336,7 +337,11 @@ bool HttpHeaderProcessor::parse(const unsigned char* data, size_t length)
 
       if (!lastFieldName_.empty()) {
         if (lastFieldHdKey_ != HttpHeader::MAX_INTERESTING_HEADER) {
-          result_->put(lastFieldHdKey_, util::strip(buf_));
+          auto stripped = util::strip(buf_);
+          if (lastFieldHdKey_ == HttpHeader::WWW_AUTHORIZATION_CHALLENGE) {
+            result_->parseAuthChallenge(stripped);
+          }
+          result_->put(lastFieldHdKey_, stripped);
         }
         lastFieldName_.clear();
         lastFieldHdKey_ = HttpHeader::MAX_INTERESTING_HEADER;

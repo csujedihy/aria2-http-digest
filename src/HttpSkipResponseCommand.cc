@@ -200,17 +200,28 @@ bool HttpSkipResponseCommand::processResponse()
     httpResponse_->processRedirect();
     return prepareForRetry(0);
   }
-
+  auto& respopnseHeader = httpResponse_->getHttpHeader();
   auto statusCode = httpResponse_->getStatusCode();
   if (statusCode >= 400) {
     switch (statusCode) {
     case 401:
       if (getOption()->getAsBool(PREF_HTTP_AUTH_CHALLENGE) &&
           !httpResponse_->getHttpRequest()->authenticationUsed() &&
-          getDownloadEngine()->getAuthConfigFactory()->activateBasicCred(
+          getDownloadEngine()->getAuthConfigFactory()->activateAuthCred(
               getRequest()->getHost(), getRequest()->getPort(),
               getRequest()->getDir(), getOption().get())) {
         return prepareForRetry(0);
+      } else if (respopnseHeader->getAuthScheme() == AUTH_DIGEST) {
+        A2_LOG_DEBUG("401 digest auth path = " + getRequest()->getDir() + getRequest()->getFile());
+        if (httpResponse_->getHttpRequest()->authenticationUsed()) {
+          A2_LOG_DEBUG("authenticationUsed = yes");
+        }
+        if (getDownloadEngine()->getAuthConfigFactory()->activateAuthCred(
+              getRequest()->getHost(), getRequest()->getPort(),
+              getRequest()->getDir(), getOption().get(),
+              std::move(respopnseHeader->getDigestAuthParams()))) {
+          return prepareForRetry(0);
+        }
       }
       throw DL_ABORT_EX2(EX_AUTH_FAILED, error_code::HTTP_AUTH_FAILED);
     case 404:

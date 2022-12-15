@@ -223,9 +223,7 @@ std::string HttpRequest::createRequest()
   }
   if (authConfig_) {
     auto authText = authConfig_->getAuthText();
-    std::string val = "Basic ";
-    val += base64::encode(std::begin(authText), std::end(authText));
-    builtinHds.emplace_back("Authorization:", val);
+    builtinHds.emplace_back("Authorization:", authText);
   }
   if (!request_->getReferer().empty()) {
     builtinHds.emplace_back("Referer:", request_->getReferer());

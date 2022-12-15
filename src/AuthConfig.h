@@ -43,15 +43,35 @@
 
 namespace aria2 {
 
+typedef enum {
+  AUTH_NONE,
+  AUTH_BASIC,
+  AUTH_DIGEST,
+  MAX_SUPPORTED_SCHEME,
+} AuthScheme;
+
+struct DigestAuthParams {
+  std::string serverNonce;
+  // The following properties are generated when responding to the challenge:
+  std::string realm;
+  std::string clientNonce;
+  std::string qop;
+  std::string response;
+  std::string algorithm;
+  std::string uri;
+};
+
 class AuthConfig {
 private:
-  std::string authScheme_;
+  AuthScheme authScheme_;
   std::string user_;
   std::string password_;
+  std::string digest_;
 
 public:
   AuthConfig();
   AuthConfig(std::string user, std::string password);
+  AuthConfig(std::string user, std::string password, std::string path, std::string method, const std::unique_ptr<DigestAuthParams>& digestAuthParams);
   ~AuthConfig();
 
   // Don't allow copying
@@ -66,6 +86,11 @@ public:
 
   static std::unique_ptr<AuthConfig> create(std::string user,
                                             std::string password);
+  static std::unique_ptr<AuthConfig> create(std::string user,
+                                            std::string password,
+                                            std::string path, // dir + file path
+                                            std::string method,
+                                            const std::unique_ptr<DigestAuthParams>& digestAuthParams);
 };
 
 std::ostream& operator<<(std::ostream& o,

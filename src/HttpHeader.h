@@ -41,12 +41,15 @@
 #include <vector>
 #include <string>
 
+#include "AuthConfig.h"
+
 namespace aria2 {
 
 struct Range;
 
 class HttpHeader {
 private:
+
   std::multimap<int, std::string> table_;
 
   // HTTP status code, e.g. 200
@@ -63,6 +66,12 @@ private:
 
   // Request Path
   std::string requestPath_;
+
+  // Auth scheme
+  AuthScheme authScheme_;
+
+  // Digest auth parameters
+  std::unique_ptr<DigestAuthParams> digestAuthParams_;
 
 public:
   HttpHeader();
@@ -95,6 +104,7 @@ public:
     SET_COOKIE,
     TRANSFER_ENCODING,
     UPGRADE,
+    WWW_AUTHORIZATION_CHALLENGE,
     MAX_INTERESTING_HEADER
   };
 
@@ -102,7 +112,6 @@ public:
   void put(int hdKey, const std::string& value);
   bool defined(int hdKey) const;
   const std::string& find(int hdKey) const;
-  std::vector<std::string> findAll(int hdKey) const;
   std::pair<std::multimap<int, std::string>::const_iterator,
             std::multimap<int, std::string>::const_iterator>
   equalRange(int hdKey) const;
@@ -159,6 +168,17 @@ public:
   // Returns true if the headers indicate that the remote endpoint
   // keeps connection open.
   bool isKeepAlive() const;
+
+  void parseAuthChallenge(const std::string& authChallenge);
+
+  const AuthScheme getAuthScheme() {
+    return authScheme_;
+  }
+
+  std::unique_ptr<DigestAuthParams> getDigestAuthParams() {
+    return std::move(digestAuthParams_);
+  }
+
 };
 
 int idInterestingHeader(const char* hdName);

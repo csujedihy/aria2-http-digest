@@ -36,6 +36,10 @@
 
 #include <ostream>
 
+#include "LogFactory.h"
+#include "util.h"
+#include "base64.h"
+#include "MessageDigest.h"
 #include "a2functional.h"
 
 namespace aria2 {
@@ -45,16 +49,43 @@ AuthConfig::AuthConfig() {}
 AuthConfig::AuthConfig(std::string user, std::string password)
     : user_(std::move(user)), password_(std::move(password))
 {
+  authScheme_ = AUTH_BASIC;
+}
+
+AuthConfig::AuthConfig(std::string user, std::string password, std::string path, std::string method, const std::unique_ptr<DigestAuthParams>& digestAuthParams)
+    : user_(std::move(user)), password_(std::move(password))
+{
+  authScheme_ = AUTH_DIGEST;
+  auto digest = MessageDigest::create("md5");
+  const auto rawH1 = user_ + ":" + digestAuthParams->realm + ":" + password_;
+  const auto rawH2 = method + ":" + path;
+  digest->update(rawH1.c_str(), rawH1.length());
+  std::string H1 = util::toHex(digest->digest());
+  digest->reset();
+  digest->update(rawH2.c_str(), rawH2.length());
+  std::string H2 = util::toHex(digest->digest());
+  const auto rawResponse = H1 + ":" + digestAuthParams->serverNonce + ":00000001:0a4f113b:" + digestAuthParams->qop + ":" + H2;
+  digest->reset();
+  digest->update(rawResponse.c_str(), rawResponse.length());
+  std::string response = util::toHex(digest->digest());
+  digest_ = " username=\"" + user_ + "\", realm=\"" + digestAuthParams->realm + "\", nonce=\"" + digestAuthParams->serverNonce + "\", uri=\"" + path + "\", algorithm=" + digestAuthParams->algorithm + ", response=\"" + response + "\", qop=" + digestAuthParams->qop + " , nc=00000001, cnonce=\"0a4f113b\"";
+  A2_LOG_INFO("Created HTTP digest");
 }
 
 AuthConfig::~AuthConfig() = default;
 
 std::string AuthConfig::getAuthText() const
 {
-  std::string s = user_;
-  s += ":";
-  s += password_;
-  return s;
+  if (authScheme_ == AUTH_BASIC) {
+    std::string s = user_;
+    s += ":";
+    s += password_;
+    return "Basic " + base64::encode(std::begin(s), std::end(s));
+  } else if (authScheme_ == AUTH_DIGEST) {
+    return "Digest " + digest_;
+  } else {
+    return nullptr;
+  }
 }
 
 std::unique_ptr<AuthConfig> AuthConfig::create(std::string user,
@@ -65,6 +96,20 @@ std::unique_ptr<AuthConfig> AuthConfig::create(std::string user,
   }
   else {
     return make_unique<AuthConfig>(std::move(user), std::move(password));
+  }
+}
+
+std::unique_ptr<AuthConfig> AuthConfig::create(std::string user,
+                                               std::string password,
+                                               std::string path, // dir + file path
+                                               std::string method,
+                                               const std::unique_ptr<DigestAuthParams>& digestAuthParams)
+{
+  if (user.empty()) {
+    return nullptr;
+  }
+  else {
+    return make_unique<AuthConfig>(std::move(user), std::move(password), path, method, digestAuthParams);
   }
 }
 
