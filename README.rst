@@ -40,6 +40,7 @@ Here is a list of features:
 * HTTP/1.1 implementation
 * HTTP Proxy support
 * HTTP BASIC authentication support
+* HTTP DIGEST authentication support (limited to MD5 for now)
 * HTTP Proxy authentication support
 * Well-known environment variables for proxy: ``http_proxy``,
   ``https_proxy``, ``ftp_proxy``, ``all_proxy`` and ``no_proxy``
