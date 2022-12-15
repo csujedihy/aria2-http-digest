@@ -247,7 +247,7 @@ void HttpRequestTest::testCreateRequest()
   option_->put(PREF_HTTP_USER, "aria2user");
   option_->put(PREF_HTTP_PASSWD, "aria2passwd");
 
-  CPPUNIT_ASSERT(authConfigFactory_->activateBasicCred("localhost", 8080, "/",
+  CPPUNIT_ASSERT(authConfigFactory_->activateAuthCred("localhost", 8080, "/",
                                                        option_.get()));
 
   expectedText = "GET /archives/aria2-1.0.0.tar.bz2 HTTP/1.1\r\n"

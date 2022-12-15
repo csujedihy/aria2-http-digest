@@ -53,7 +53,7 @@ void AuthConfigFactoryTest::testCreateAuthConfig_http()
   // not activated
   CPPUNIT_ASSERT(!factory.createAuthConfig(req, &option));
 
-  CPPUNIT_ASSERT(factory.activateBasicCred("localhost", 80, "/", &option));
+  CPPUNIT_ASSERT(factory.activateAuthCred("localhost", 80, "/", &option));
 
   CPPUNIT_ASSERT_EQUAL(std::string("localhostuser:localhostpass"),
                        factory.createAuthConfig(req, &option)->getAuthText());
@@ -61,7 +61,7 @@ void AuthConfigFactoryTest::testCreateAuthConfig_http()
   // See default token in netrc is ignored.
   req->setUri("http://mirror/");
 
-  CPPUNIT_ASSERT(!factory.activateBasicCred("mirror", 80, "/", &option));
+  CPPUNIT_ASSERT(!factory.activateAuthCred("mirror", 80, "/", &option));
 
   CPPUNIT_ASSERT(!factory.createAuthConfig(req, &option));
 
@@ -71,7 +71,7 @@ void AuthConfigFactoryTest::testCreateAuthConfig_http()
 
   CPPUNIT_ASSERT(!factory.createAuthConfig(req, &option));
 
-  CPPUNIT_ASSERT(factory.activateBasicCred("mirror", 80, "/", &option));
+  CPPUNIT_ASSERT(factory.activateAuthCred("mirror", 80, "/", &option));
 
   CPPUNIT_ASSERT_EQUAL(std::string("userDefinedUser:userDefinedPassword"),
                        factory.createAuthConfig(req, &option)->getAuthText());
@@ -189,12 +189,12 @@ void AuthConfigFactoryTest::testCreateAuthConfig_ftp()
 }
 
 namespace {
-std::unique_ptr<BasicCred>
+std::unique_ptr<AuthCred>
 createBasicCred(const std::string& user, const std::string& password,
                 const std::string& host, uint16_t port, const std::string& path,
                 bool activated = false)
 {
-  return make_unique<BasicCred>(user, password, host, port, path, activated);
+  return make_unique<AuthCred>(user, password, host, port, path, activated);
 }
 } // namespace
 
@@ -206,15 +206,15 @@ void AuthConfigFactoryTest::testUpdateBasicCred()
 
   AuthConfigFactory factory;
 
-  factory.updateBasicCred(
+  factory.updateAuthCred(
       createBasicCred("myname", "mypass", "localhost", 80, "/", true));
-  factory.updateBasicCred(
+  factory.updateAuthCred(
       createBasicCred("price", "j38jdc", "localhost", 80, "/download", true));
-  factory.updateBasicCred(createBasicCred("soap", "planB", "localhost", 80,
+  factory.updateAuthCred(createBasicCred("soap", "planB", "localhost", 80,
                                           "/download/beta", true));
-  factory.updateBasicCred(
+  factory.updateAuthCred(
       createBasicCred("alice", "ium8", "localhost", 80, "/documents", true));
-  factory.updateBasicCred(
+  factory.updateAuthCred(
       createBasicCred("jack", "jackx", "mirror", 80, "/doc", true));
 
   std::shared_ptr<Request> req(new Request());

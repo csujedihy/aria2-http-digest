@@ -66,17 +66,6 @@ const std::string& HttpHeader::find(int hdKey) const
   }
 }
 
-std::vector<std::string> HttpHeader::findAll(int hdKey) const
-{
-  std::vector<std::string> v;
-  auto itrpair = table_.equal_range(hdKey);
-  while (itrpair.first != itrpair.second) {
-    v.push_back((*itrpair.first).second);
-    ++itrpair.first;
-  }
-  return v;
-}
-
 std::pair<std::multimap<int, std::string>::const_iterator,
           std::multimap<int, std::string>::const_iterator>
 HttpHeader::equalRange(int hdKey) const
@@ -219,6 +208,35 @@ bool HttpHeader::isKeepAlive() const
          (version_ == "HTTP/1.1" || util::strieq(connection, "keep-alive"));
 }
 
+void HttpHeader::parseAuthChallenge(const std::string& authChallenge)
+{
+  auto p = util::divide(std::begin(authChallenge), std::end(authChallenge), ' ');
+  if (util::streq(p.first.first, p.first.second, "Basic")) {
+    authScheme_ = AUTH_BASIC;
+  } else if (util::streq(p.first.first, p.first.second, "Digest")) {
+    authScheme_ = AUTH_DIGEST;
+    std::vector<Scip> values;
+    util::splitIter(p.first.second, std::end(authChallenge),
+                    std::back_inserter(values), ',',
+                    true // doStrip
+    );
+    digestAuthParams_ = make_unique<DigestAuthParams>();
+    for (const auto& v : values) {
+      auto p = util::divide(v.first, v.second, '=', true);
+      auto stripped = util::strip(std::string(p.second.first, p.second.second), "\"");
+      if (util::streq(p.first.first, p.first.second, "nonce")) {
+        digestAuthParams_->serverNonce  = stripped;
+      } else if (util::streq(p.first.first, p.first.second, "qop")) {
+        digestAuthParams_->qop = stripped;
+      } else if (util::streq(p.first.first, p.first.second, "algorithm")) {
+        digestAuthParams_->algorithm = stripped;
+      }  else if (util::streq(p.first.first, p.first.second, "realm")) {
+        digestAuthParams_->realm = stripped;
+      }
+    }
+  }
+}
+
 namespace {
 constexpr const char* INTERESTING_HEADER_NAMES[] = {
     "accept-encoding",
@@ -244,6 +262,7 @@ constexpr const char* INTERESTING_HEADER_NAMES[] = {
     "set-cookie",
     "transfer-encoding",
     "upgrade",
+    "www-authenticate",
 };
 } // namespace
 

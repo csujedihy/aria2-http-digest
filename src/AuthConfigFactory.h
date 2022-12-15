@@ -41,6 +41,7 @@
 #include <set>
 #include <memory>
 
+#include "AuthConfig.h"
 #include "SingletonHolder.h"
 #include "a2functional.h"
 
@@ -52,7 +53,7 @@ class AuthConfig;
 class Request;
 class AuthResolver;
 
-class BasicCred {
+class AuthCred {
 public:
   std::string user_;
   std::string password_;
@@ -60,23 +61,36 @@ public:
   uint16_t port_;
   std::string path_;
   bool activated_;
+  std::unique_ptr<DigestAuthParams> digestAuthParams_;
 
-  BasicCred(std::string user, std::string password, std::string host,
+  AuthCred(std::string user, std::string password, std::string host,
             uint16_t port, std::string path, bool activated = false);
+  AuthCred(std::string user, std::string password, std::string host,
+            uint16_t port, std::string path, std::unique_ptr<DigestAuthParams> digestAuthParams, bool activated = false);
+
+  void upgradeToDigest(std::unique_ptr<DigestAuthParams> digestAuthParams) {
+    digestAuthParams_ = std::move(digestAuthParams);
+  }
+
+  const std::unique_ptr<DigestAuthParams>& getDigestAuthParams() const {
+    return digestAuthParams_;
+  }
+
+  bool isDigest() { return digestAuthParams_ != nullptr; };
 
   void activate();
 
   bool isActivated() const;
 
-  bool operator==(const BasicCred& cred) const;
+  bool operator==(const AuthCred& cred) const;
 
-  bool operator<(const BasicCred& cred) const;
+  bool operator<(const AuthCred& cred) const;
 };
 
 class AuthConfigFactory {
 public:
-  typedef std::set<std::unique_ptr<BasicCred>,
-                   DerefLess<std::unique_ptr<BasicCred>>>
+  typedef std::set<std::unique_ptr<AuthCred>,
+                   DerefLess<std::unique_ptr<AuthCred>>>
       BasicCredSet;
 
 private:
@@ -86,7 +100,7 @@ private:
 
   std::unique_ptr<AuthResolver> createFtpAuthResolver(const Option* op) const;
 
-  BasicCredSet basicCreds_;
+  BasicCredSet authCreds_;
 
 public:
   AuthConfigFactory();
@@ -102,27 +116,30 @@ public:
 
   void setNetrc(std::unique_ptr<Netrc> netrc);
 
-  // Find a BasicCred using findBasicCred() and activate it then
-  // return true.  If matching BasicCred is not found, AuthConfig
+  // Find a AuthCred using findAuthCred() and activate it then
+  // return true.  If matching AuthCred is not found, AuthConfig
   // object is created using createHttpAuthResolver and op.  If it is
-  // null, then returns false. Otherwise new BasicCred is created
+  // null, then returns false. Otherwise new AuthCred is created
   // using this AuthConfig object with given host and path "/" and
   // returns true.
-  bool activateBasicCred(const std::string& host, uint16_t port,
+  bool activateAuthCred(const std::string& host, uint16_t port,
                          const std::string& path, const Option* op);
+  bool activateAuthCred(const std::string& host, uint16_t port,
+                         const std::string& path, const Option* op,
+                         std::unique_ptr<DigestAuthParams> digestAuthParams);
 
-  // Find a BasicCred using host, port and path and return the
+  // Find a AuthCred using host, port and path and return the
   // iterator pointing to it. If not found, then return
-  // basicCreds_.end().
-  BasicCredSet::iterator findBasicCred(const std::string& host, uint16_t port,
+  // authCreds_.end().
+  BasicCredSet::iterator findAuthCred(const std::string& host, uint16_t port,
                                        const std::string& path);
 
-  // If the same BasicCred is already added, then it is replaced with
+  // If the same AuthCred is already added, then it is replaced with
   // given basicCred. Otherwise, insert given basicCred to
-  // basicCreds_.
+  // authCreds_.
   //
   // Made public for unit test.
-  void updateBasicCred(std::unique_ptr<BasicCred> basicCred);
+  void updateAuthCred(std::unique_ptr<AuthCred> basicCred);
 };
 
 } // namespace aria2
